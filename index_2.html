@@ -16,6 +16,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .role-btn { width: 100%; display: flex; align-items: center; gap: 15px; padding: 15px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; cursor: pointer; margin-top: 10px; transition: 0.2s; text-align: left; }
 .role-btn:hover { border-color: var(--blue); background: #f8faff; }
 
+/* ── INTERFAZ PRINCIPAL ── */
+.app { display: flex; flex-direction: column; height: 100vh; display: none; }
+.topbar { height: 52px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+.main { display: flex; flex: 1; overflow: hidden; }
+#map { flex: 1; background: #e5e7eb; min-height: 100%; }
+.sidebar { width: 380px; background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+.sidebar-content { flex: 1; padding: 20px; overflow-y: auto; }
+.sidebar-footer { padding: 15px; border-top: 1px solid var(--border); }
 
 /* ── COMPONENTES INTERNOS ── */
 .status-badge { padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; line-height: 1.4; border: 1px solid transparent; }

@@ -51,6 +51,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .btn-blue { background: var(--blue); color: #fff; border: none; }
 </style>
 </head>
+
+<script src="js/Control_vulneraciones.js"></script>
+<script src="js/Mapa.js"></script>
+<script src="js/Comunicacion_BdD.js"></script>
 <body>
 
 <div class="auth-screen" id="auth-screen">
@@ -97,11 +101,31 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
                         <h3>Verificación de Operación</h3>
                         <div class="field">
                             <label>Altura de vuelo solicitada (m AGL)</label>
-                            <input type="number" id="pilot-height" value="60" oninput="recheckIntersection()">
+                            <input type="number" id="pilot-height" value="0" oninput="recheckIntersection(pilotLayers)">
                         </div>
                         <p style="font-size:12px; color:var(--text2); margin-bottom:15px;">Dibuja tu área de operación. El sistema descargará las servidumbres del gestor desde internet para evaluarlas.</p>
                         
                         <div id="affection-result" class="hidden"></div>
+                    </div>
+
+                    <div id="pilot-form" class="hidden" >
+                        <h3>Datos de la Solicitud</h3>
+                        <div class="field">
+                            <label>Nombre del Piloto</label>
+                            <input type="text" id="pilot-name" placeholder="Tu nombre completo">
+                        </div>
+                        <div class="field">
+                            <label>Empresa / Operador</label>
+                            <input type="text" id="pilot-company" placeholder="Nombre de la empresa">
+                        </div>
+                        <div class="field">
+                            <label>Descripción de la Operación</label>
+                            <textarea id="pilot-description" placeholder="Describe brevemente tu operación..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); height: 80px; font-family: inherit;"></textarea>
+                        </div>
+                        <div class="field">
+                            <label>Email de Contacto</label>
+                            <input type="email" id="pilot-email" placeholder="tu@email.com">
+                        </div>
                     </div>
                 </div>
 
@@ -151,196 +175,34 @@ function initApp(role) {
     fetchZonesFromCloud(); 
 }
 
-function initMap() {
-    if (map) return; 
-
-    managerLayers = L.featureGroup();
-    pilotLayers = L.featureGroup();
-
-    L.Browser.touch = false;
-
-    map = L.map('map').setView([40.4168, -3.7038], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-    }).addTo(map);
-    
-    managerLayers.addTo(map);
-    pilotLayers.addTo(map);
-
-    map.pm.addControls({
-        position: 'topleft',
-        drawCircleMarker: false, drawPolyline: false, drawRectangle: false,
-        drawCircle: false, drawMarker: false, drawText: false,
-        editMode: true, dragMode: false, cutPolygon: false,
-        removalMode: true, drawPolygon: true
-    });
-
-    map.pm.setGlobalOptions({
-        snappable: true,
-        snapDistance: 20, 
-        snapOtherLayers: false, // <-- CLAVE: Evita que el ratón se pegue a las zonas del gestor
-        hintlineStyle: { color: currentRole === 'manager' ? '#b91c1c' : '#1a56db', dashArray: '5,5' }
-    });
-
-    map.pm.setPathOptions({
-        color: currentRole === 'manager' ? '#b91c1c' : '#1a56db',
-        fillOpacity: 0.3
-    });
-
-    map.on('pm:create', function (e) {
-        const layer = e.layer;
-        lastDrawnLayer = layer;
-        
-        if (currentRole === 'manager') {
-            const limit = document.getElementById('manager-limit').value;
-            const label = document.getElementById('manager-label').value;
-            layer.options.altitudeLimit = parseFloat(limit);
-            layer.bindTooltip(`<b>${label}</b><br>Techo: ${limit}m AMSL`).openTooltip();
-            managerLayers.addLayer(layer);
-        } else {
-            // <-- CLAVE: Exactamente igual que el gestor, sin borrados agresivos
-            pilotLayers.clearLayers();
-            pilotLayers.addLayer(layer);
-            recheckIntersection();
-        }
-    });
-
-    setTimeout(() => { map.invalidateSize(); }, 200);
-}
-
-async function fetchZonesFromCloud() {
-    try {
-        let { data: heliport_zones, error } = await supabaseClient
-            .from('heliport_zones')
-            .select('*');
-            
-        if (error) throw error;
-        managerLayers.clearLayers();
-
-        if (heliport_zones) {
-            heliport_zones.forEach(zone => {
-                if (zone.polygon_data) {
-                    const layer = L.geoJSON(zone.polygon_data, {
-                        style: { color: '#b91c1c', fillOpacity: 0.25, weight: 2 },
-                        interactive: false 
-                    });
-                    
-                    layer.eachLayer(l => {
-                        l.options.pmIgnore = true; // <-- CLAVE: Geoman ignorará estas capas por completo
-                        l.options.altitudeLimit = zone.altitude_limit;
-                        l.bindTooltip(`<b>${zone.label}</b><br>Techo: ${zone.altitude_limit}m AMSL`);
-                        managerLayers.addLayer(l);
-                    });
-                }
-            });
-        }
-    } catch (err) {
-        console.error("Error al descargar zonas:", err.message);
-    }
-}
-
-async function saveZoneToCloud() {
-    if (!lastDrawnLayer) return alert("Primero debes dibujar un polígono en el mapa.");
-    
-    const geojson = lastDrawnLayer.toGeoJSON();
-    const limit = parseFloat(document.getElementById('manager-limit').value);
-    const label = document.getElementById('manager-label').value;
-
-    try {
-        const { data, error } = await supabaseClient
-            .from('heliport_zones')
-            .insert([
-                { polygon_data: geojson, altitude_limit: limit, label: label }
-            ]);
-
-        if (error) throw error;
-
-        alert("¡Éxito! La zona se ha subido a tu base de datos global.");
-        lastDrawnLayer = null;
-    } catch (err) {
-        alert("Error de subida: " + err.message);
-    }
-}
-
-async function sendFlightRequestToCloud() {
-    // 1. Condición idéntica a la del gestor: verificamos la memoria directa
-    if (!lastDrawnLayer) return alert("Primero debes dibujar un polígono en el mapa.");
-    
-    // 2. Extracción directa idéntica a la del gestor
-    const geojson = lastDrawnLayer.toGeoJSON();
-    const height = parseFloat(document.getElementById('pilot-height').value);
-    const refCode = "SKY-" + Math.floor(100000 + Math.random() * 900000);
-    const status = hasAffection ? "pending_validation" : "approved";
-
-    try {
-        // 3. Inserción en base de datos
-        const { data, error } = await supabaseClient
-            .from('flight_requests')
-            .insert([
-                { pilot_polygon: geojson, pilot_height: height, reference_code: refCode, status: status }
-            ]);
-
-        // Si Supabase devuelve un error, lo lanzamos para que se muestre en el alert
-        if (error) throw error;
-
-        // 4. Mensaje de éxito idéntico al gestor (pero con recarga para limpiar pantalla)
-        alert(`¡Éxito! Enviado a la nube.\nCódigo REF: ${refCode}\nEstado: ${status === 'approved' ? 'APROBADO DIRECTO' : 'PENDIENTE GESTOR'}`);
-        lastDrawnLayer = null;
-        location.reload();
-        
-    } catch (err) {
-        alert("Error de subida: " + err.message);
-    }
-}
-
-function recheckIntersection() {
-    const layers = pilotLayers.getLayers();
-    if (layers.length === 0) return;
-    
-    hasAffection = false;
-    const pilotLayer = layers;
-    const pilotGeo = pilotLayer.toGeoJSON();
-    const pilotHeight = parseFloat(document.getElementById('pilot-height').value);
-    
-    let isIntersectingMap = false;
-    let isInvadingHeight = false;
-
-    managerLayers.eachLayer(managerLayer => {
-        const managerGeo = managerLayer.toGeoJSON();
-        
-        try {
-            const intersect = turf.intersect(pilotGeo, managerGeo);
-            
-            if (intersect) {
-                isIntersectingMap = true;
-                const limit = managerLayer.options.altitudeLimit;
-                if (pilotHeight >= limit) {
-                    isInvadingHeight = true;
-                    hasAffection = true;
-                }
-            }
-        } catch (err) {
-            console.error("Error validando el espacio aéreo con Turf.js:", err);
-        }
-    });
-
-    const res = document.getElementById('affection-result');
-    res.classList.remove('hidden');
-    
-    if (isInvadingHeight) {
-        res.innerHTML = `<div class="status-badge status-warn"><b>❌ CONFLICTO CRÍTICO</b><br>Invades el espacio aéreo del helipuerto en planta y altura. Requerirá aprobación manual del gestor.</div>`;
-    } else if (isIntersectingMap) {
-        res.innerHTML = `<div class="status-badge status-ok" style="background:#eef2ff; color:#3730a3; border-color:#c7d2fe"><b>⚠️ TRÁNSITO BAJO LA SERVIDUMBRE</b><br>Coincides en planta, pero vuelas por debajo del techo crítico. Aprobación directa autorizada con precaución.</div>`;
-    } else {
-        res.innerHTML = `<div class="status-badge status-ok"><b>✅ ESPACIO LIBRE</b><br>No interfieres con ninguna infraestructura aeronáutica registrada en la nube.</div>`;
-    }
-}
 
 function handleAction() {
     if (currentRole === 'manager') {
         saveZoneToCloud();
     } else {
-        sendFlightRequestToCloud();
+        const setup = document.getElementById('pilot-setup');
+        const form = document.getElementById('pilot-form');
+        const btn = document.getElementById('btn-action');
+        
+        if (!form.classList.contains('hidden')) {
+            // Formulario visible → valida y envía
+            const name = document.getElementById('pilot-name').value.trim();
+            const company = document.getElementById('pilot-company').value.trim();
+            const description = document.getElementById('pilot-description').value.trim();
+            const email = document.getElementById('pilot-email').value.trim();
+            
+            if (!name || !company || !description || !email) {
+                alert("❌ Todos los campos son obligatorios. Rellena el formulario completo.");
+                return;
+            }
+            
+            sendFlightRequestToCloud(pilotLayers);
+        } else {
+            // Formulario oculto → muéstralo
+            setup.classList.add('hidden');
+            form.classList.remove('hidden');
+            btn.textContent = "Confirmar y Enviar";
+        }
     }
 }
 </script>

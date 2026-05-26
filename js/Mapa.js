@@ -6,7 +6,12 @@ function initMap() {
 
     L.Browser.touch = false;
 
-    map = L.map('map').setView([40.4168, -3.7038], 6);
+    map = L.map('map', {
+    worldCopyJump: false,
+    maxBounds: [[32, -20], [47, 10]],
+    maxBoundsViscosity: 1.0,
+    minZoom: 7
+    }).setView([40.4168, -3.7038], 8);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
     }).addTo(map);

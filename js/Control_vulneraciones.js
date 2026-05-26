@@ -3,7 +3,7 @@ function recheckIntersection(layers) {
     if (layers.length === 0) return;
     
     hasAffection = false;
-    const pilotGeo = layers.toGeoJSON();
+    const pilotGeo = getGeoJSONForFeatureGroup(layers);
     const pilotHeight = parseFloat(document.getElementById('pilot-height').value);
     
     let isIntersectingMap = false;
@@ -11,7 +11,7 @@ function recheckIntersection(layers) {
     let managerGeo= null;
 
     managerLayers.eachLayer(managerLayer => {
-         managerGeo = managerLayer.toGeoJSON();
+         managerGeo = getGeoJSONForLayer(managerLayer);
         
         try {
             const intersect = turf.intersect(pilotGeo.features[0].geometry, managerGeo.geometry);
@@ -46,7 +46,7 @@ async function sendFlightRequestToCloud(layers) {
     if (!lastDrawnLayer) return alert("Primero debes dibujar un polígono en el mapa.");
     
     // 2. Extracción directa idéntica a la del gestor
-    const geojson = lastDrawnLayer.toGeoJSON();
+    const geojson = getGeoJSONForLayer(lastDrawnLayer);
     const height = parseFloat(document.getElementById('pilot-height').value);
     const refCode = "SKY-" + Math.floor(100000 + Math.random() * 900000);
     recheckIntersection(layers); // <-- CLAVE: Revalidamos justo antes de enviar para asegurar que el estado es correcto

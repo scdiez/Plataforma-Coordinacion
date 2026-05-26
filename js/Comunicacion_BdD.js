@@ -63,7 +63,7 @@ async function Datos_Solicitudes() {
 async function saveZoneToCloud() {
     if (!lastDrawnLayer) return alert("Primero debes dibujar un polígono en el mapa.");
     
-    const geojson = lastDrawnLayer.toGeoJSON();
+    const geojson = getGeoJSONForLayer(lastDrawnLayer);
     const limit = parseFloat(document.getElementById('manager-limit').value);
     const label = document.getElementById('manager-label').value;
 
@@ -88,7 +88,7 @@ async function sendFlightRequestToCloud(layers) {
     if (!lastDrawnLayer) return alert("Primero debes dibujar un polígono en el mapa.");
     
     // 2. Extracción directa idéntica a la del gestor
-    const geojson = lastDrawnLayer.toGeoJSON();
+    const geojson = getGeoJSONForLayer(lastDrawnLayer);
     const height = parseFloat(document.getElementById('pilot-height').value);
     const refCode = "SKY-" + Math.floor(100000 + Math.random() * 900000);
     recheckIntersection(layers); // <-- CLAVE: Revalidamos justo antes de enviar para asegurar que el estado es correcto

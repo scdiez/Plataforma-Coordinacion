@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SkyPermit Pro — Cloud Sync</title>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="Estilo.css">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyPermit Pro — Cloud Sync</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="Estilo.css">
 
 
 </head>
@@ -17,156 +19,211 @@
 <script src="js/Control_vulneraciones.js"></script>
 <script src="js/Mapa.js"></script>
 <script src="js/Comunicacion_BdD.js"></script>
+
 <body>
 
-<div class="auth-screen" id="auth-screen">
-    <div class="auth-card">
-        <h2 style="margin-bottom:10px">SkyPermit Pro</h2>
-        <p style="font-size: 13px; color: var(--text2); margin-bottom: 20px;">Infraestructura Aeronáutica en la Nube</p>
-        <button class="role-btn" onclick="initApp('manager')">🏢 <b>Gestor de Helipuerto</b><br><small>Publicar servidumbres globales en internet</small></button>
-        <button class="role-btn" onclick="initApp('pilot')">🚁 <b>Piloto de Drones</b><br><small>Validar y enviar plan de vuelo remoto</small></button>
+    <div class="auth-screen" id="auth-screen">
+        <div class="auth-card">
+            <h2 style="margin-bottom:10px">SkyPermit Pro</h2>
+            <p style="font-size: 13px; color: var(--text2); margin-bottom: 20px;">Infraestructura Aeronáutica en la Nube
+            </p>
+            <button class="role-btn" onclick="initApp('particular')">👤 <b>Particular</b><br><small>Solicitud individual
+                    de vuelo</small></button>
+            <button class="role-btn" onclick="initApp('empresa')">🏢 <b>Empresa</b><br><small>Solicitud profesional o
+                    recurrente</small></button>
+        </div>
     </div>
-</div>
 
-<div class="app" id="app">
-    <div class="topbar">
-        <div style="font-weight:600">SkyPermit <span id="role-label" style="font-weight:400; color:var(--text2)"></span></div>
-        <button class="btn" style="width:auto" onclick="location.reload()">Cerrar Sesión</button>
-    </div>
-    
-    <div class="main">
-        <div id="map"></div>
-        <div class="sidebar">
-            <div class="sidebar-content">
-                
-                <div id="view-manager" class="hidden">
-                    <h3>Nueva Restricción Real</h3>
-                    <p style="font-size:13px; color:var(--text2); margin: 10px 0;">El polígono que dibujes se guardará directamente en tu base de datos de Supabase.</p>
-                    
-                    <div class="field">
-                        <label>Techo de la Restricción (m AMSL)</label>
-                        <input type="number" id="manager-limit" value="150">
-                    </div>
-                    
-                    <div class="field">
-                        <label>Nombre / Identificador del Helipuerto</label>
-                        <input type="text" id="manager-label" value="Helipuerto Principal">
-                    </div>
-                    
-                    <div style="margin-top:20px; font-size:13px; border-top: 1px solid var(--border); padding-top: 15px;">
-                        <b>Estado de la red:</b> <span id="cloud-status" style="color:var(--green); font-weight:600">Online</span>
-                    </div>
-                </div>
+    <div class="app" id="app">
+        <div class="topbar">
+            <div style="font-weight:600">SkyPermit <span id="role-label"
+                    style="font-weight:400; color:var(--text2)"></span></div>
+            <button class="btn" style="width:auto" onclick="location.reload()">Cerrar Sesión</button>
+        </div>
 
-                <div id="view-pilot" class="hidden">
-                    <div id="pilot-setup">
+        <div class="main">
+            <div id="map"></div>
+            <div class="sidebar">
+                <div class="sidebar-content">
+
+                    <!-- PASO 1 COMÚN -->
+                    <div id="step-flight" class="panel active">
                         <h3>Verificación de Operación</h3>
+
                         <div class="field">
                             <label>Altura de vuelo solicitada (m AGL)</label>
-                            <input type="number" id="pilot-height" value="0" oninput="recheckIntersection(pilotLayers)">
+                            <input type="number" id="flight-height" value="60"
+                                oninput="recheckIntersection(pilotLayers.getLayers())">
                         </div>
-                        <p style="font-size:12px; color:var(--text2); margin-bottom:15px;">Dibuja tu área de operación. El sistema descargará las servidumbres del gestor desde internet para evaluarlas.</p>
-                        
+
+                        <p style="font-size:12px; color:var(--text2); margin-bottom:15px;">
+                            Dibuja tu área de operación en el mapa.
+                        </p>
+
                         <div id="affection-result" class="hidden"></div>
                     </div>
 
-                    <div id="pilot-form" class="hidden" >
-                        <h3>Datos de la Solicitud</h3>
+                    <!-- PASO 2 PARTICULAR -->
+                    <div id="step-particular" class="panel">
+                        <h3>Datos del particular</h3>
+
                         <div class="field">
-                            <label>Nombre del Piloto</label>
-                            <input type="text" id="pilot-name" placeholder="Tu nombre completo">
+                            <label>Nombre y apellidos</label>
+                            <input type="text" id="particular-name">
                         </div>
+
                         <div class="field">
-                            <label>Empresa / Operador</label>
-                            <input type="text" id="pilot-company" placeholder="Nombre de la empresa">
+                            <label>DNI / NIE</label>
+                            <input type="text" id="particular-id">
                         </div>
+
                         <div class="field">
-                            <label>Descripción de la Operación</label>
-                            <textarea id="pilot-description" placeholder="Describe brevemente tu operación..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); height: 80px; font-family: inherit;"></textarea>
+                            <label>Email</label>
+                            <input type="email" id="particular-email">
                         </div>
+
                         <div class="field">
-                            <label>Email de Contacto</label>
-                            <input type="email" id="pilot-email" placeholder="tu@email.com">
+                            <label>Teléfono</label>
+                            <input type="tel" id="particular-phone">
                         </div>
                     </div>
-                </div>
 
-            </div>
-            <div class="sidebar-footer" id="footer">
-                <button class="btn btn-blue" id="btn-action" onclick="handleAction()">Ejecutar</button>
+                    <!-- PASO 2 EMPRESA -->
+                    <div id="step-company" class="panel">
+                        <h3>Datos de la empresa</h3>
+
+                        <div class="field">
+                            <label>Denominación Social</label>
+                            <input type="text" id="company-name">
+                        </div>
+
+                        <div class="field">
+                            <label>NIF</label>
+                            <input type="text" id="company-cif">
+                        </div>
+
+                        <div class="field">
+                            <label>Nombre del solicitante</label>
+                            <input type="text" id="company-email">
+                        </div>
+
+                        <div class="field">
+                            <label>DNI del solicitante</label>
+                            <input type="tel" id="company-phone">
+                        </div>
+                    </div>
+
+                    <!-- PASO 3 COMÚN -->
+                    <div id="step-pilot" class="panel">
+                        <h3>Datos del piloto</h3>
+
+                        <div class="field">
+                            <label>Nombre del piloto</label>
+                            <input type="text" id="pilot-name">
+                        </div>
+
+                        <div class="field">
+                            <label>DNI / NIE del piloto</label>
+                            <input type="text" id="pilot-id">
+                        </div>
+
+                        <div class="field">
+                            <label>Email del piloto</label>
+                            <input type="email" id="pilot-email">
+                        </div>
+
+                        <div class="field">
+                            <label>Número de licencia / operador</label>
+                            <input type="text" id="pilot-license">
+                        </div>
+
+                        <div class="field">
+                            <label>Descripción de la operación</label>
+                            <input type="text" id="pilot-description">
+                        </div>
+                    </div>
+
+                </div>
+                <div class="sidebar-footer" id="footer">
+                    <button class="btn btn-blue" id="btn-action" onclick="handleAction()">Ejecutar</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-const SUPABASE_URL = "https://dgiqavipbsakxkyhudjb.supabase.co";
-const SUPABASE_KEY = "sb_publishable_zW3CeBaZvylt1c5MuzjRpA_kEhWbrUD"; 
+    <script>
+        const SUPABASE_URL = "https://dgiqavipbsakxkyhudjb.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_zW3CeBaZvylt1c5MuzjRpA_kEhWbrUD";
 
-let supabaseClient;
-let map, currentRole;
-let managerLayers, pilotLayers;
-let hasAffection = false;
-let lastDrawnLayer = null;
+        let supabaseClient;
+        let map, currentRole;
+        let managerLayers, pilotLayers;
+        let hasAffection = false;
+        let lastDrawnLayer = null;
+        let currentStep;
 
-function initApp(role) {
-    if (!supabaseClient) {
+        function initApp(role) {
+            if (!supabaseClient) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
+            currentRole = role;
+            currentStep = 1;
 
-    currentRole = role;
-    
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    document.getElementById('role-label').textContent = role === 'manager' ? '| Módulo Gestor' : '| Módulo Piloto Externo';
-    
-    if(role === 'manager') {
-        document.getElementById('view-manager').classList.remove('hidden');
-        document.getElementById('btn-action').textContent = "Subir Servidumbre a Internet";
-    } else {
-        document.getElementById('view-pilot').classList.remove('hidden');
-        document.getElementById('btn-action').textContent = "Enviar Solicitud a la Nube";
-    }
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
 
-    initMap();
-    fetchZonesFromCloud(); 
-}
+            document.getElementById('role-label').textContent =
+                role === 'particular' ? '| Particular' : '| Empresa';
 
+            goToStep('step-flight');
 
-function handleAction() {
-    if (currentRole === 'manager') {
-        saveZoneToCloud();
-    } else {
-        const setup = document.getElementById('pilot-setup');
-        const form = document.getElementById('pilot-form');
-        const btn = document.getElementById('btn-action');
-        
-        if (!form.classList.contains('hidden')) {
-            // Formulario visible → valida y envía
-            const name = document.getElementById('pilot-name').value.trim();
-            const company = document.getElementById('pilot-company').value.trim();
-            const description = document.getElementById('pilot-description').value.trim();
-            const email = document.getElementById('pilot-email').value.trim();
+            document.getElementById('btn-action').textContent = 'Continuar';
+
+            initMap();
+            fetchZonesFromCloud();
             
-            if (!name || !company || !description || !email) {
-                alert("❌ Todos los campos son obligatorios. Rellena el formulario completo.");
+        }
+
+        function goToStep(stepId) {
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            document.getElementById(stepId).classList.add('active');
+        }
+
+
+        function handleAction() {
+            if (currentStep === 1) {
+                if (pilotLayers.getLayers().length === 0) {
+                    return alert("Dibuja primero la zona de operación.");
+                }
+
+                recheckIntersection(pilotLayers.getLayers());
+
+                goToStep(currentRole === 'particular' ? 'step-particular' : 'step-company');
+                currentStep = 2;
+                document.getElementById('btn-action').textContent = 'Continuar';
                 return;
             }
-            
-            sendFlightRequestToCloud(pilotLayers);
-        } else {
-            // Formulario oculto → muéstralo
-            setup.classList.add('hidden');
-            form.classList.remove('hidden');
-            btn.textContent = "Confirmar y Enviar";
+
+            if (currentStep === 2) {
+                goToStep('step-pilot');
+                currentStep = 3;
+                document.getElementById('btn-action').textContent = 'Enviar solicitud';
+                return;
+            }
+
+            if (currentStep === 3) {
+                sendFlightRequestToCloud(pilotLayers.getLayers());
+            }
         }
-    }
-}
-</script>
+    </script>
 </body>
+
 </html>

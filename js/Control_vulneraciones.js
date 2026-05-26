@@ -1,10 +1,10 @@
-function recheckIntersection(layers) {
+function recheckIntersection() {
     //const layers = pilotLayers.getLayers();
-    if (layers.length === 0) return;
+    if (pilotLayers.length === 0) return;
     
     hasAffection = false;
-    const pilotGeo = getGeoJSONForFeatureGroup(layers);
-    const pilotHeight = parseFloat(document.getElementById('pilot-height').value);
+    const pilotGeo = getGeoJSONForFeatureGroup(pilotLayers);
+    const pilotHeight = parseFloat(document.getElementById('flight-height').value);
     
     let isIntersectingMap = false;
     let isInvadingHeight = false;
@@ -47,7 +47,7 @@ async function sendFlightRequestToCloud(layers) {
     
     // 2. Extracción directa idéntica a la del gestor
     const geojson = getGeoJSONForLayer(lastDrawnLayer);
-    const height = parseFloat(document.getElementById('pilot-height').value);
+    const height = parseFloat(document.getElementById('flight-height').value);
     const refCode = "SKY-" + Math.floor(100000 + Math.random() * 900000);
     recheckIntersection(layers); // <-- CLAVE: Revalidamos justo antes de enviar para asegurar que el estado es correcto
     const status = hasAffection ? "pending_validation" : "approved";
